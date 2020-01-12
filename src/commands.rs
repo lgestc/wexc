@@ -1,15 +1,12 @@
 use std::process::Command;
 
 fn get_own_name() -> String {
-    let result = Command::new("git").args(&["config", "user.name"]).output();
+    let output = Command::new("git")
+        .args(&["config", "user.name"])
+        .output()
+        .expect("could not get git user name");
 
-    let name = match result {
-        Ok(output) => String::from(String::from_utf8_lossy(&output.stdout).trim()),
-        Err(e) => {
-            eprintln!("{}", e);
-            panic!("could not get git user.name")
-        }
-    };
+    let name = String::from(String::from_utf8_lossy(&output.stdout).trim());
 
     return name;
 }
@@ -21,21 +18,16 @@ pub struct Commit {
 }
 
 fn get_author_commits<'a>(author: String) -> Vec<Commit> {
-    let result = Command::new("git")
+    let output = Command::new("git")
         .args(&[
             "log",
             &["--author=", &author].join(""),
             "--format=\"%h||%s\"",
         ])
-        .output();
+        .output()
+        .expect("could not execute command");
 
-    let output = match result {
-        Ok(output) => String::from(String::from_utf8_lossy(&output.stdout)),
-        Err(e) => {
-            eprintln!("{}", e);
-            panic!("could not execute command")
-        }
-    };
+    let output = String::from(String::from_utf8_lossy(&output.stdout));
 
     let lines = output.split("\n").collect::<Vec<&str>>();
 
