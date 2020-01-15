@@ -3,7 +3,6 @@ mod model;
 mod ui;
 
 use backend::git::GitProvider;
-
 use ui::cli::Cli;
 use ui::renderer::Renderer;
 

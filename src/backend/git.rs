@@ -25,7 +25,7 @@ impl GitProvider {
             .args(&[
                 "log",
                 &["--author=", &author].join(""),
-                "--format=\"%h||%s\"",
+                "--format=%h||%s",
             ])
             .output()
             .expect("could not execute command");
