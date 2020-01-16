@@ -3,7 +3,7 @@ use crate::backend::provider::Provider;
 use crate::model::entry::Entry;
 
 use std::{
-    env::{temp_dir, var},
+    env::{current_dir, temp_dir, var},
     fs::File,
     fs::OpenOptions,
     io::Read,
@@ -21,15 +21,22 @@ impl Cli {
 
 impl Renderer for Cli {
     fn render(&self, provider: impl Provider) {
-        let entries = provider.provide_entries();
+        let mut entries = provider.provide_entries();
         let mut temp_output = String::new();
 
-        for entry in &entries {
+        entries.reverse();
+
+        temp_output.push_str("# Replace \"work_excerpt\" to alter excerpt report file name:\n");
+        temp_output.push_str("Output filename: work_excerpt\n\n");
+
+        temp_output.push_str("# Prepend given entry with \"p \" to include it in the report \n\n");
+
+        entries.iter().for_each(|entry| {
             temp_output.push_str(&entry.id.to_owned());
             temp_output.push_str(": ");
             temp_output.push_str(&entry.subject.to_owned());
             temp_output.push_str("\n");
-        }
+        });
 
         let editor = var("EDITOR").unwrap();
         let mut file_path = temp_dir();
@@ -66,6 +73,8 @@ impl Renderer for Cli {
 
         let picked_ids: Vec<String> = updated_file
             .lines()
+            .filter(|line| !line.contains("#"))
+            .filter(|line| !line.contains("Output filename:"))
             .filter(|line| line.find("p ").unwrap_or(1) == 0)
             .map(|line| {
                 let hash = line.replacen("p ", "", 1);
@@ -79,6 +88,53 @@ impl Renderer for Cli {
             .filter(|entry| picked_ids.contains(&entry.id))
             .collect();
 
-        print!("{:?}", matching_entries);
+        let mut output = String::new();
+
+        matching_entries.iter().for_each(|entry| {
+            let mut parent_ref = String::from(&entry.id);
+            parent_ref.push_str("^");
+
+            let git_output = Command::new("git")
+                .arg("diff")
+                .arg(parent_ref)
+                .arg(&entry.id)
+                .output()
+                .expect("could not execute command");
+
+            let git_output = String::from(String::from_utf8_lossy(&git_output.stdout));
+
+            output.push_str(&git_output);
+        });
+
+        let report_name_line = updated_file
+            .lines()
+            .filter(|line| line.contains("Output filename:"))
+            .last()
+            .and_then(|line| Some(String::from(line)))
+            .unwrap();
+
+        let report_name_line: Vec<&str> = report_name_line.split(":").collect();
+
+        let report_name_line = report_name_line
+            .get(1)
+            .expect("Could not get report name. Please do not remove \"Output filename:\" prefix");
+
+        let report_file_name = String::from(report_name_line.trim());
+
+        let mut report_file_name = String::from(report_file_name);
+        report_file_name.push_str(".diff");
+
+        let mut report_file = current_dir().unwrap();
+        report_file.push(report_file_name);
+
+        let output_filename = String::from(report_file.as_path().to_str().unwrap());
+
+        OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(output_filename)
+            .expect("could not open file")
+            .write_all(output.as_bytes())
+            .expect("could not write");
     }
 }

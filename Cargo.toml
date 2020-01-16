@@ -1,5 +1,5 @@
 [package]
-name = "git_excerpt"
+name = "wexc"
 version = "0.1.0"
 authors = ["lgmys <lgmys@pm.me>"]
 edition = "2018"
