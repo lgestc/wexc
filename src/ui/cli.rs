@@ -40,7 +40,7 @@ impl Renderer for Cli {
 
         let editor = var("EDITOR").unwrap();
         let mut file_path = temp_dir();
-        file_path.push("editable");
+        file_path.push("pick entries");
         File::create(&file_path).expect("Could not create file");
 
         let wait_arg = if editor.contains("code") {
@@ -82,6 +82,11 @@ impl Renderer for Cli {
                 return String::from(hash);
             })
             .collect();
+
+        if picked_ids.len() == 0 {
+            println!("no items selected, aborting");
+            return;
+        }
 
         let matching_entries: Vec<&Entry> = entries
             .iter()
