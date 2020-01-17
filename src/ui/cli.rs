@@ -35,7 +35,9 @@ impl Renderer for Cli {
             temp_output.push_str(&entry.id.to_owned());
             temp_output.push_str(": ");
             temp_output.push_str(&entry.subject.to_owned());
-            temp_output.push_str("\n");
+            temp_output.push_str(" (");
+            temp_output.push_str(&entry.timestamp.to_owned());
+            temp_output.push_str(")\n");
         });
 
         let editor = var("EDITOR").unwrap();

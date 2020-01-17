@@ -25,7 +25,7 @@ impl GitProvider {
             .args(&[
                 "log",
                 &["--author=", &author].join(""),
-                "--format=%h||%s",
+                "--format=%h||%s||%ai",
             ])
             .output()
             .expect("could not execute command");
@@ -33,17 +33,24 @@ impl GitProvider {
         let lines = output.split("\n").collect::<Vec<&str>>();
         let mut commits: Vec<Entry> = Vec::new();
         for line in lines {
-            let hash_and_subject = line.split("||").collect::<Vec<&str>>();
-            let hash = match hash_and_subject.get(0) {
+            let entry_data = line.split("||").collect::<Vec<&str>>();
+            let hash = match entry_data.get(0) {
                 Some(hash) => hash,
                 None => "",
             };
             let hash = hash.trim();
-            let subject = match hash_and_subject.get(1) {
+            let subject = match entry_data.get(1) {
                 Some(subject) => subject,
                 None => "",
             };
             let subject = subject.trim();
+
+            let timestamp = match entry_data.get(2) {
+                Some(timestamp) => timestamp,
+                None => "",
+            };
+            let timestamp = timestamp.trim();
+
             if subject.chars().count() == 0 {
                 continue;
             }
@@ -53,6 +60,7 @@ impl GitProvider {
             commits.push(Entry {
                 id: String::from(hash),
                 subject: String::from(subject),
+                timestamp: String::from(timestamp),
             });
         }
         commits

@@ -2,4 +2,5 @@
 pub struct Entry {
     pub id: String,
     pub subject: String,
+    pub timestamp: String,
 }
