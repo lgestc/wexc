@@ -63,6 +63,9 @@ impl GitProvider {
                 timestamp: String::from(timestamp),
             });
         }
+
+        commits.reverse();
+
         commits
     }
 }
@@ -70,5 +73,27 @@ impl GitProvider {
 impl Provider for GitProvider {
     fn provide_entries(&self) -> Vec<Entry> {
         self.get_commits(self.get_own_name())
+    }
+
+    fn report_for_entries(&self, entries: &Vec<&Entry>) -> String {
+        let mut output = String::new();
+
+        entries.iter().for_each(|entry| {
+            let mut parent_ref = String::from(&entry.id);
+            parent_ref.push_str("^");
+
+            let git_output = Command::new("git")
+                .arg("diff")
+                .arg(parent_ref)
+                .arg(&entry.id)
+                .output()
+                .expect("could not execute command");
+
+            let git_output = String::from(String::from_utf8_lossy(&git_output.stdout));
+
+            output.push_str(&git_output);
+        });
+
+        output
     }
 }

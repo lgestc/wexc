@@ -17,19 +17,14 @@ impl Cli {
     pub fn new() -> Cli {
         Cli {}
     }
-}
 
-impl Renderer for Cli {
-    fn render(&self, provider: impl Provider) {
-        let mut entries = provider.provide_entries();
+    fn generate_interactive_selection_file(&self, entries: &Vec<Entry>) -> String {
         let mut temp_output = String::new();
 
-        entries.reverse();
+        temp_output.push_str("# Replace \"default\" to alter excerpt report file name. Otherwise, it will be constructed using first picked entry.\n");
+        temp_output.push_str("Output filename: default\n\n");
 
-        temp_output.push_str("# Replace \"work_excerpt\" to alter excerpt report file name:\n");
-        temp_output.push_str("Output filename: work_excerpt\n\n");
-
-        temp_output.push_str("# Prepend given entry with \"p \" to include it in the report \n\n");
+        temp_output.push_str("# Prefix given entry with \"p \" to include it in the report \n\n");
 
         entries.iter().for_each(|entry| {
             temp_output.push_str(&entry.id.to_owned());
@@ -40,40 +35,15 @@ impl Renderer for Cli {
             temp_output.push_str(")\n");
         });
 
-        let editor = var("EDITOR").unwrap();
-        let mut file_path = temp_dir();
-        file_path.push("pick entries");
-        File::create(&file_path).expect("Could not create file");
+        temp_output
+    }
 
-        let wait_arg = if editor.contains("code") {
-            String::from("--wait")
-        } else {
-            String::new()
-        };
-
-        OpenOptions::new()
-            .write(true)
-            .open(&file_path)
-            .expect("could not open file")
-            .write_all(temp_output.as_bytes())
-            .expect("could not write");
-
-        Command::new(editor)
-            .arg(&wait_arg)
-            .arg(&file_path)
-            .spawn()
-            .expect("could not spawn command")
-            .wait_with_output()
-            .expect("could not execute command");
-
-        let mut updated_file = String::new();
-
-        File::open(&file_path)
-            .expect("Could not open file")
-            .read_to_string(&mut updated_file)
-            .expect("could not read file");
-
-        let picked_ids: Vec<String> = updated_file
+    fn parse_selection<'a>(
+        &self,
+        entries: &'a Vec<Entry>,
+        interactive_selection_file: &String,
+    ) -> Vec<&'a Entry> {
+        let picked_ids: Vec<String> = interactive_selection_file
             .lines()
             .filter(|line| !line.contains("#"))
             .filter(|line| !line.contains("Output filename:"))
@@ -85,63 +55,105 @@ impl Renderer for Cli {
             })
             .collect();
 
-        if picked_ids.len() == 0 {
-            println!("no items selected, aborting");
-            return;
-        }
-
         let matching_entries: Vec<&Entry> = entries
             .iter()
             .filter(|entry| picked_ids.contains(&entry.id))
             .collect();
 
-        let mut output = String::new();
+        matching_entries
+    }
 
-        matching_entries.iter().for_each(|entry| {
-            let mut parent_ref = String::from(&entry.id);
-            parent_ref.push_str("^");
-
-            let git_output = Command::new("git")
-                .arg("diff")
-                .arg(parent_ref)
-                .arg(&entry.id)
-                .output()
-                .expect("could not execute command");
-
-            let git_output = String::from(String::from_utf8_lossy(&git_output.stdout));
-
-            output.push_str(&git_output);
-        });
-
-        let report_name_line = updated_file
+    fn prepare_report_path(
+        &self,
+        selected_entries: &Vec<&Entry>,
+        interactive_selection_file: &String,
+    ) -> String {
+        let report_file_name = interactive_selection_file
             .lines()
             .filter(|line| line.contains("Output filename:"))
             .last()
             .and_then(|line| Some(String::from(line)))
             .unwrap();
 
-        let report_name_line: Vec<&str> = report_name_line.split(":").collect();
+        let report_file_name: Vec<&str> = report_file_name.split(":").collect();
 
-        let report_name_line = report_name_line
-            .get(1)
-            .expect("Could not get report name. Please do not remove \"Output filename:\" prefix");
+        let report_file_name = report_file_name.get(1).unwrap_or(&"default");
 
-        let report_file_name = String::from(report_name_line.trim());
+        let report_file_name = String::from(report_file_name.trim());
 
-        let mut report_file_name = String::from(report_file_name);
-        report_file_name.push_str(".diff");
+        let report_file_name = if report_file_name == "default" {
+            let first_entry = selected_entries
+                .first()
+                .expect("no matching entries available to build default report name");
 
-        let mut report_file = current_dir().unwrap();
-        report_file.push(report_file_name);
+            return String::from(&first_entry.subject);
+        } else {
+            report_file_name
+        };
 
-        let output_filename = String::from(report_file.as_path().to_str().unwrap());
+        let mut report_file_path = current_dir().unwrap();
+        report_file_path.push(report_file_name);
+
+        let report_file_path = String::from(report_file_path.as_path().to_str().unwrap());
+
+        report_file_path
+    }
+}
+
+impl Renderer for Cli {
+    fn render(&self, provider: impl Provider) {
+        let entries = provider.provide_entries();
+
+        let editor = var("EDITOR").unwrap();
+        let wait_arg = if editor.contains("code") {
+            String::from("--wait")
+        } else {
+            String::new()
+        };
+        let mut interactive_selection_file_path = temp_dir();
+        interactive_selection_file_path.push("pick entries");
+
+        let mut interactive_selection_file = self.generate_interactive_selection_file(&entries);
 
         OpenOptions::new()
             .write(true)
             .create(true)
-            .open(output_filename)
+            .open(&interactive_selection_file_path)
             .expect("could not open file")
-            .write_all(output.as_bytes())
-            .expect("could not write");
+            .write_all(interactive_selection_file.as_bytes())
+            .expect("could not write interactive selection temp file");
+
+        Command::new(editor)
+            .arg(&wait_arg)
+            .arg(&interactive_selection_file_path)
+            .spawn()
+            .expect("could not open interactive selection editor")
+            .wait_with_output()
+            .expect("could not gather editor output");
+
+        File::open(&interactive_selection_file_path)
+            .expect("could not reopen interactive selection file")
+            .read_to_string(&mut interactive_selection_file)
+            .expect("could not read modified interactive selection file");
+
+        let selected_entries = self.parse_selection(&entries, &interactive_selection_file);
+
+        if selected_entries.len() == 0 {
+            println!("no entries selected, aborting");
+            return;
+        }
+
+        let report = provider.report_for_entries(&selected_entries);
+
+        let report_file_path =
+            self.prepare_report_path(&selected_entries, &interactive_selection_file);
+
+        OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(report_file_path)
+            .expect("could not open report file")
+            .write_all(report.as_bytes())
+            .expect("could not write report file");
     }
 }
