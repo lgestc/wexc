@@ -1,10 +1,7 @@
-mod backend;
-mod model;
-mod ui;
-
-use backend::git::GitProvider;
-use ui::cli::Cli;
-use ui::renderer::Renderer;
+use wexc::{
+    backend::git::GitProvider,
+    ui::{cli::Cli, renderer::Renderer},
+};
 
 fn main() {
     let provider = GitProvider::new();

@@ -1,13 +1,10 @@
 use super::renderer::Renderer;
-use crate::backend::provider::Provider;
-use crate::model::entry::Entry;
+use crate::{backend::provider::Provider, model::entry::Entry};
 
 use std::{
     env::{current_dir, temp_dir, var},
-    fs::File,
-    fs::OpenOptions,
-    io::Read,
-    io::Write,
+    fs::{File, OpenOptions},
+    io::{Read, Write},
     process::Command,
 };
 
