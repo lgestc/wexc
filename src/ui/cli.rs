@@ -101,7 +101,7 @@ impl Renderer for Cli {
     fn render(&self, provider: impl Provider) {
         let entries = provider.provide_entries();
 
-        let editor = var("EDITOR").unwrap();
+        let editor = var("EDITOR").expect("EDITOR not set!");
         let wait_arg = if editor.contains("code") {
             String::from("--wait")
         } else {
