@@ -42,7 +42,7 @@ impl Cli {
     ) -> Vec<&'a Entry> {
         let picked_ids: Vec<String> = interactive_selection_file
             .lines()
-            .filter(|line| !line.contains("#"))
+            .filter(|line| !line.starts_with("#"))
             .filter(|line| !line.contains("Output filename:"))
             .filter(|line| line.find("p ").unwrap_or(1) == 0)
             .map(|line| {
