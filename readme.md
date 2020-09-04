@@ -8,7 +8,7 @@ Work excerpts can span across multiple files and are delivered as single files, 
 
 ## Installation
 
-Simply run `cargo build --release && cargo install --path . --force` in crate root.
+Simply clone & run `cargo install --path .` in crate root.
 
 ## Usage
 
