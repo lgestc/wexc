@@ -1,6 +1,6 @@
 [package]
 name = "wexc"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["lgmys <lgmys@pm.me>"]
 edition = "2018"
 

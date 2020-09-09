@@ -13,7 +13,7 @@ impl GitProvider {
 
     fn get_own_name(&self) -> String {
         let output = Command::new("git")
-            .args(&["config", "user.name"])
+            .args(&["config", "user.email"])
             .output()
             .expect("could not get git user name");
         let name = String::from(String::from_utf8_lossy(&output.stdout).trim());
@@ -72,7 +72,12 @@ impl GitProvider {
 
 impl Provider for GitProvider {
     fn provide_entries(&self) -> Vec<Entry> {
-        self.get_commits(self.get_own_name())
+        let author = self.get_own_name();
+        println!(
+            "fetching entries from git filtered by user.email {}",
+            author
+        );
+        self.get_commits(author)
     }
 
     fn report_for_entries(&self, entries: &Vec<&Entry>) -> String {
