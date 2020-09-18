@@ -1,5 +1,6 @@
 use super::renderer::Renderer;
 use crate::{backend::provider::Provider, model::entry::Entry};
+use regex::Regex;
 
 use std::{
     env::{current_dir, temp_dir, var},
@@ -79,11 +80,16 @@ impl Cli {
         let report_file_name = String::from(report_file_name.trim());
 
         let report_file_name = if report_file_name == "default" {
+            let re = Regex::new(r"[[:^alpha:]]+").unwrap();
+
             let first_entry = selected_entries
                 .first()
                 .expect("no matching entries available to build default report name");
 
-            return String::from(&first_entry.subject);
+            let report_file_name = String::from(&first_entry.subject);
+            let report_file_name = re.replace_all(&report_file_name, "_").to_string();
+
+            report_file_name
         } else {
             report_file_name
         };
@@ -109,6 +115,8 @@ impl Renderer for Cli {
         };
         let mut interactive_selection_file_path = temp_dir();
         interactive_selection_file_path.push("pick entries");
+
+        std::fs::remove_file(&interactive_selection_file_path).ok();
 
         let mut interactive_selection_file = self.generate_interactive_selection_file(&entries);
 
